@@ -1,0 +1,25 @@
+data <- read.csv("SelectedVariables1.csv", header=TRUE)
+str(data)
+
+data$Y <- as.factor(data$Y)
+data$tourney_name <- as.factor(data$tourney_name)
+data$surface <- as.factor(data$surface)
+
+
+install.packages("rpart")
+install.packages("rpart.plot")
+library("rpart")
+library("rpart.plot")
+library(dplyr)
+library(tidyr)
+library(glmnet)
+
+set.seed(1234)
+dt <- sort (sample(nrow(data), nrow(data) *.7))
+train <- data[dt,]
+test <- data[-dt,]
+rtree <- rpart(Y ~ ., data, method = "class")
+rpart.plot(rtree)
+
+rtree <- rpart(Y ~ ., train, method = "class")
+rpart.plot(rtree)
