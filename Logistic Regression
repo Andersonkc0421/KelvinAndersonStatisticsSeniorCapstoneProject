@@ -1,0 +1,142 @@
+install.packages("rms")
+install.packages("aod")
+install.packages("tidyverse")
+install.packages("knitr")
+install.packages("sjPlot")
+install.packages("effects")
+install.packages("readr")
+install.packages("StepReg")
+library("rms")
+library("aod")
+library("tidyverse")
+library("knitr")
+library("car")
+library("broom")
+library("sjPlot")
+library("effects")
+library("readr")
+library("pROC")
+library("StepReg")
+library("caret")
+
+data <- read.csv("SelectedVariables1.csv", header=TRUE)
+str(data)
+
+data$Y <- as.factor(data$Y)
+data$tourney_name <- as.factor(data$tourney_name)
+data$surface <- as.factor(data$surface)
+
+data$tourney_name <- relevel(data$tourney_name, ref = "Wimbledon")
+data$surface <- relevel(data$surface, ref = "Hard")
+
+set.seed(1234)
+dt <- sort(sample(nrow(data), nrow(data) *.70))
+train <- data[dt,]
+test <- data[-dt,] 
+train1 <- train[, -3]
+test1 <- test[, -3]
+train2 <- train1[-c(15,17,59,64,87,188,191,202,3,6,75,123,129,130,153,209,88,103,
+                    141,169), ]
+test2 <- test1[-c(15,17,59,64,87,188,191,202,3,6,75,123,129,130,153,209,88,103,
+                    141,169), ]
+
+#################################################################
+write.csv(train, file = "/Users/kelvinanderson/Desktop/STAT 495 CAPSTONE", 
+          row.names = FALSE)
+write.csv(test, file = "/Users/kelvinanderson/Desktop/STAT 495 CAPSTONE", 
+          row.names = FALSE)
+
+
+model <- glm(Y ~ tourney_name + surface + ace + bpSaved + df + X1stWon + X2ndWon,
+             data = train, family = binomial(link = "logit"))
+summary(model)
+
+accuracy <- sum(predictions == test) / nrow(test)
+cat("Accuracy:", accuracy)
+confusionMatrix(predictions, test)
+
+
+model11 <- glm(Y ~ tourney_name + ace + bpSaved + df + X1stWon + X2ndWon,
+               data = train, family = binomial(link = "logit"))
+summary(model11)
+predictions <- predict(model11, newdata = test)
+accuracy <- sum(predictions == test) / nrow(test)
+cat("Accuracy:", accuracy)
+confusionMatrix(predictions, test)
+predictions <- predict(model11, newdata = train1, type = "response")
+binary_predictions <- ifelse(predictions > 0.5, 1, 0)
+table <- table(binary_predictions, train1$Y)
+#percentage correct
+percentage_correct <- sum(diag(table))/sum(table)*100
+print(paste0("Percentage Correct: ", percentage_correct, "%"))
+
+
+model22 <- glm(Y ~ tourney_name + ace + bpSaved + df + X1stWon + X2ndWon,
+               data = train2, family = binomial(link = "logit"))
+summary(model22)
+predictions <- predict(model22, newdata = test2)
+accuracy <- sum(predictions == test2) / nrow(test2)
+cat("Accuracy:", accuracy)
+confusionMatrix(predictions, test2)
+
+deviance(model)
+AIC(model)
+BIC(model)
+
+
+plot(train$ace, residuals(model), xlab = "ace", ylab = "Residuals")
+plot(train$bpSaved, residuals(model), xlab = "bpSaved", ylab = "Residuals")
+plot(train$df, residuals(model), xlab = "df", ylab = "Residuals")
+plot(train$X1stWon, residuals(model), xlab = "X1stWon", ylab = "Residuals")
+plot(train$X2ndWon, residuals(model), xlab = "X2ndWon", ylab = "Residuals")
+
+cor(train[, c("tourney_name", "surface", "ace", "bpSaved", "df", "X1stWon", "X2ndWon")])
+
+
+
+numvars<-c(4:8)
+xbars<-apply(data[,numvars],2,mean)
+xbars
+
+#covariance matrix
+sigma<-cov(data[,numvars])
+sigma
+
+
+library(ggplot2)
+library(reshape2)
+
+
+ggplot(data = cor_long, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, 
+                       limits = c(-1,1), name = "Correlation") +
+  labs(x = NULL, y = NULL, title = "Correlation Heatmap")
+
+
+## Predicting the class probabilities for the training and test sets
+train_prob <- predict(model, newdata = train, type = "response")
+train_prob
+
+test_prob <- predict(model, newdata = test, type = "response")
+test_prob
+
+# Converting the class probabilities to binary predictions based on a threshold of 0.5
+train_pred <- ifelse(train_prob > 0.5, 1, 0)
+test_pred <- ifelse(test_prob > 0.5, 1, 0)
+
+# Calculating the accuracy of the model on the training and test sets
+train_accuracy <- mean(train_pred == train$Y)
+test_accuracy <- mean(test_pred == test$Y)
+
+cat("Training Accuracy:", train_accuracy, "\n")
+cat("Test Accuracy:", test_accuracy, "\n")
+
+
+
+stepwiseLogit(Y ~ ace + bpSaved + df + X1stWon + X2ndWon + tourney_name + surface, 
+              train, selection = "forward", select = "SL", sle = 0.05)
+ 
+
+install.packages("ResourceSelection")
+library("ResourceSelection")
